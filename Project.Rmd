@@ -1,0 +1,393 @@
+---
+title: "[Project]"
+author: "[Samuel Navias]"
+subtitle: MGSC 310 Project Summary Statistics
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+---
+
+```{r setup, include=FALSE}
+# Please leave this code chunk as is. It makes some slight formatting changes to alter the output to be more aesthetically pleasing. 
+
+library(knitr)
+
+# Change the number in set seed to your own favorite number
+set.seed(1818)
+options(width=70)
+options(scipen=99)
+
+
+# this sets text outputted in code chunks to small
+opts_chunk$set(tidy.opts=list(width.wrap=50),tidy=TRUE, size = "vsmall")  
+opts_chunk$set(message = FALSE,                                          
+               warning = FALSE,
+               # "caching" stores objects in code chunks and only rewrites if you change things
+               cache = FALSE,                               
+               # automatically downloads dependency files
+               autodep = TRUE,
+               # 
+               cache.comments = FALSE,
+               # 
+               collapse = TRUE,
+               # change fig.width and fig.height to change the code height and width by default
+               fig.width = 5.5,  
+               fig.height = 4.5,
+               fig.align='center')
+
+
+```
+
+```{r setup-2}
+# Always print this out before your assignment
+sessionInfo()
+getwd()
+
+```
+
+
+<!-- ### start answering your problem set here -->
+<!-- You may export your homework in either html or pdf, with the former usually being easier. 
+     To export or compile your Rmd file: click above on 'Knit' then 'Knit to HTML' -->
+<!-- Be sure to submit both your .Rmd file and the compiled .html or .pdf file for full credit -->
+
+
+```{r setup-3}
+# load all your libraries in this chunk 
+library('tidyverse')
+library('ggplot2')
+library('forcats')
+library('dplyr')
+library('readr')
+library('ggrepel')
+library('plotROC')
+library('rsample')
+# note, do not run install.packages() inside a code chunk. install them in the console outside of a code chunk. 
+
+```
+
+
+
+## Loading in Data 
+
+1.1) 
+
+```{r}
+#Loading in the data and glimpse 
+DF <- read_csv("datasets/supermarket_sales.csv")
+glimpse(DF)
+
+#Removing the unnecessary columns:Invoice ID, Date, and Time
+#The cleaner data is now saved as DFtwo
+#DFtwo is not the final cleaned version only an improvement 
+
+DFtwo <- select(DF, -`Invoice ID`, -Date, -Time)
+glimpse(DFtwo)
+
+```
+
+
+1.2) Making vectors to convert into a tibble to present some summary statistics of the Raw data (minus the columns that were removed above). SD of gross margin percentage is 0 so the variable is useless.
+
+```{r}
+#Vector for the variable names
+vector0 <- c(
+"Unit price",
+"Quantity",
+"Tax 5%",
+"Total",
+"cogs",
+"gross margin percentage",
+"gross income",
+"Rating"
+)
+
+#Vector for the variable averages
+vector1 <- c(
+mean(DFtwo$`Unit price`),
+mean(DFtwo$Quantity),
+mean(DFtwo$`Tax 5%`),
+mean(DFtwo$Total),
+mean(DFtwo$cogs),
+mean(DFtwo$`gross margin percentage`),
+mean(DFtwo$`gross income`),
+mean(DFtwo$Rating)
+)
+
+#Vector for the variable standard deviations 
+vector2 <- c(
+sd(DFtwo$`Unit price`),
+sd(DFtwo$Quantity),
+sd(DFtwo$`Tax 5%`),
+sd(DFtwo$Total),
+sd(DFtwo$cogs),
+sd(DFtwo$`gross margin percentage`),
+sd(DFtwo$`gross income`),
+sd(DFtwo$Rating)
+)
+
+#Vector for the variable max's
+vector3 <- c(
+max(DFtwo$`Unit price`),
+max(DFtwo$Quantity),
+max(DFtwo$`Tax 5%`),
+max(DFtwo$Total),
+max(DFtwo$cogs),
+max(DFtwo$`gross margin percentage`),
+max(DFtwo$`gross income`),
+max(DFtwo$Rating)
+)
+
+#Vector for the variable min's
+vector4 <- c(
+min(DFtwo$`Unit price`),
+min(DFtwo$Quantity),
+min(DFtwo$`Tax 5%`),
+min(DFtwo$Total),
+min(DFtwo$cogs),
+min(DFtwo$`gross margin percentage`),
+min(DFtwo$`gross income`),
+min(DFtwo$Rating)
+)
+
+#Creating the tibble
+tibble(`Variables` = vector0,
+       `Mean` = vector1,
+       `Standard Deviation` = vector2,
+       `Max` = vector3,
+       `Min` = vector4)
+
+
+```
+
+
+## Cleaning The Data | Making some plots
+
+2.1) Gross margin percentage removed. Payment, Gender, Branch, City, Product line, Customer type transformed into factor variables. Also made a binary variable to see if a store is considered good or not based on if it got a rating of 8 or higher.
+
+
+```{r}
+DFthree <-  select(DFtwo, -`gross margin percentage`)
+
+DFthree <- DFthree %>% 
+  mutate(Payment = as_factor(Payment)) %>% 
+  mutate(Gender = as_factor(Gender)) %>% 
+  mutate(Branch = as_factor(Branch)) %>% 
+  mutate(City = as_factor(City)) %>% 
+  mutate(`Product line` = as_factor(`Product line`)) %>% 
+  mutate(`Customer type` = as_factor(`Customer type`))
+
+DFthree <- DFthree %>% 
+  mutate(goodStore = ifelse(Rating > 8,1,0))
+
+drop_na(DFthree)
+
+```
+
+
+```{r}
+summary(DFthree)
+```
+
+
+```{r}
+
+DFfour <- DFthree %>% 
+  mutate(`Unit price` = log(`Unit price`)) %>% 
+  mutate(`Quantity` = log(`Quantity`)) %>% 
+  mutate(`Tax 5%` = log(`Tax 5%`)) %>% 
+  mutate(`Total` = log(`Total`)) %>% 
+  mutate(`cogs` = log(`cogs`)) %>% 
+  mutate(`gross income` = log(`gross income`)) %>% 
+  mutate(`Rating` = log(`Rating`))
+
+DFfive <- DFthree %>% 
+  mutate(`Unit price` = log(`Unit price`)) %>% 
+  mutate(`Quantity` = as_factor(`Quantity`)) %>% 
+  mutate(`Tax 5%` = log(`Tax 5%`)) %>% 
+  mutate(`Total` = log(`Total`)) %>% 
+  mutate(`cogs` = log(`cogs`)) %>% 
+  mutate(`gross income` = log(`gross income`)) %>% 
+  mutate(`Rating` = log(`Rating`))
+
+DFfive
+```
+
+
+
+2.2) Making some plots
+
+
+
+This plot is interesting because it shows that the average rating for grocery stores in Mandalay is slightly worse than the the average rating in Naypyitaw and Yangon
+```{r}
+ggplot(DFthree, aes(x=Branch, y=Rating)) + 
+  geom_boxplot()
+
+```
+
+This plot is interesting because it shows that the cogs really has no affect on the rating. Personally  I thought that people who would spend more would tend to have given a higher rating. Because I feel that when I go to the store and spend less money I am usually going to pick up an item that I forgot and I would be upset because I had to go back to the store and I would give a worse rating.  
+```{r}
+ggplot(data = DFthree, aes(x = `cogs`, y = `Rating`)) + 
+  geom_point() + 
+  geom_point(aes(colour = factor(`Product line`))) 
+
+
+
+```
+
+
+
+```{r}
+ggplot(data = DFthree, aes(x = `cogs`, y = `Rating`)) + 
+  facet_wrap(~`Product line`) + 
+  geom_point(alpha = 4/7, aes(colour = factor(`Product line`))) 
+
+```
+
+
+
+#Making the first logistic regression model:
+
+Splitting the various transformed data sets:
+```{r}
+set.seed(1223)
+
+DFthree_split <- initial_split(DFthree, prop = 0.80) 
+
+DFthree_train <- training(DFthree_split)
+DFthree_test <- testing(DFthree_split)
+
+```
+
+
+Building the model. Summary command run and coefficients exponentiated 
+```{r}
+logit1 <- glm(goodStore ~ Branch + `Customer type` + Gender + cogs + Payment + Quantity,
+              data = DFthree_train,
+              family = "binomial")
+
+summary(logit1)
+
+exp(logit1$coefficients)
+```
+
+
+
+```{r}
+scoresTrain <- predict(logit1, newdata = DFthree_train,
+            type ="response")
+
+scoresTest <- predict(logit1, newdata = DFthree_test,
+            type ="response")
+
+results_train <- tibble(
+  `true_class` = as.numeric(DFthree_train$goodStore),
+  `prob_event` =  scoresTrain
+)
+
+results_test <- tibble(
+  `true_class` = as.numeric(DFthree_test$goodStore),
+  `prob_event` =  scoresTest
+)
+
+```
+
+
+```{r}
+ROCTrain <- ggplot(results_train, 
+            aes(m = prob_event, d = true_class)) + 
+  geom_roc(labelsize = 3.5, 
+           cutoffs.at = 
+             c(0.9,0.8,0.7,0.5,0.3,0.2,0.1)) +
+  theme_minimal(base_size = 16) + 
+  xlab("Train: False Positive Rate") + 
+  ylab("Train: True Positive Rate")
+
+ROCTest <- ggplot(results_test, 
+            aes(m = prob_event, d = true_class)) + 
+  geom_roc(labelsize = 3.5, 
+           cutoffs.at = 
+             c(0.9,0.8,0.7,0.5,0.3,0.2,0.1)) +
+  theme_minimal(base_size = 16) + 
+  xlab("Test: False Positive Rate") + 
+  ylab("Test: True Positive Rate")
+
+
+ROCTrain
+ROCTest
+```
+
+```{r}
+calc_auc(ROCTrain)
+calc_auc(ROCTest)
+```
+
+
+#Building a the same model but with log transformed vars
+```{r}
+DFfive_split <- initial_split(DFfive, prop = 0.80) 
+
+DFfive_train <- training(DFfive_split)
+DFfive_test <- testing(DFfive_split)
+
+```
+
+
+```{r}
+logit2 <- glm(goodStore ~ Branch + `Customer type` + Gender + `Unit price` + Payment + Quantity,
+              data = DFfive_train,
+              family = "binomial")
+
+summary(logit2)
+
+exp(logit1$coefficients)
+
+```
+
+
+```{r}
+scoresTrain2 <- predict(logit2, newdata = DFfive_train,
+            type ="response")
+
+scoresTest2 <- predict(logit2, newdata = DFfive_test,
+            type ="response")
+
+results_train2 <- tibble(
+  `true_class` = as.numeric(DFfive_train$goodStore),
+  `prob_event` =  scoresTrain
+)
+
+results_test2 <- tibble(
+  `true_class` = as.numeric(DFfive_test$goodStore),
+  `prob_event` =  scoresTest
+)
+```
+
+
+
+```{r}
+ROCTrain <- ggplot(results_train2, 
+            aes(m = prob_event, d = true_class)) + 
+  geom_roc(labelsize = 3.5, 
+           cutoffs.at = 
+             c(0.9,0.8,0.7,0.5,0.3,0.2,0.1)) +
+  theme_minimal(base_size = 16) + 
+  xlab("Train: False Positive Rate") + 
+  ylab("Train: True Positive Rate")
+
+ROCTest <- ggplot(results_test2, 
+            aes(m = prob_event, d = true_class)) + 
+  geom_roc(labelsize = 3.5, 
+           cutoffs.at = 
+             c(0.9,0.8,0.7,0.5,0.3,0.2,0.1)) +
+  theme_minimal(base_size = 16) + 
+  xlab("Test: False Positive Rate") + 
+  ylab("Test: True Positive Rate")
+
+
+ROCTrain
+ROCTest
+```
+
